@@ -1,0 +1,15 @@
+{
+  "name": "keygen",
+  "version": "0.0.1",
+  "description": "AWS Lambda to generate Urbit keyfile from ship and master ticket",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Pyry Kovanen",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "urbit-key-generation": "^0.20.1"
+  }
+}
