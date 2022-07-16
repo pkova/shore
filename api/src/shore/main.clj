@@ -27,7 +27,7 @@
                               :in $ ?t
                               :where [_ :shore/ticket ?t]]
                             db
-                            (get (json/read body) "ticket")))]
+                            (get (json/read-str (slurp body)) "ticket")))]
     (cond
       (= :options request-method) {:status 200}
       (not= (= uri "/enter"))     {:status 404}
