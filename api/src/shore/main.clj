@@ -7,7 +7,6 @@
             [datomic.ion.dev :as ion]
             [datomic.ion.cast :as cast]
             [datomic.ion.dev :as dev]
-            [ring.middleware.params :as params]
             [cognitect.aws.client.api :as aws]))
 
 (def cfg {:server-type :ion
@@ -64,8 +63,5 @@
          :Type "A"
          :TTL 300
          :ResourceRecords [{:Value ip}]}}]}}}))
-
-(def wrapped-handler
-  (-> handler params/wrap-params))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))

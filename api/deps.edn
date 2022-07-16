@@ -11,7 +11,6 @@
         com.cognitect.aws/s3 {:mvn/version "822.2.1145.0"}
         com.cognitect.aws/eventbridge {:mvn/version "822.2.1122.0"}
         com.cognitect.aws/route53 {:mvn/version "822.2.1109.0"}
-        ring/ring-core {:mvn/version "1.9.5"}
         hato/hato {:mvn/version "0.8.2"}
         pkova/clj-ob {:git/url "https://github.com/pkova/clj-ob" :sha "b0b40840d12fdd33c3b0cd921a14e574ec755fd3"}}
  :mvn/repos {"datomic-cloud" {:url "s3://datomic-releases-1fc2183a/maven/releases"}}}

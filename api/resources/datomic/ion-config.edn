@@ -1,2 +1,2 @@
-{:http-direct {:handler-fn shore.main/wrapped-handler}
+{:http-direct {:handler-fn shore.main/handler}
  :app-name "shore"}
