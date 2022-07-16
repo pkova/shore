@@ -33,7 +33,9 @@
                             db
                             (get (safe-read-str (slurp body)) "ticket" "")))]
     (cond
-      (= :options request-method) {:status 200}
+      (= :options request-method) {:status 200
+                                   :headers {"Access-Control-Allow-Origins" "https://shore.arvo.network"
+                                             "Access-Control-Allow-Methods" "POST"}}
       (not= (= uri "/enter"))     {:status 404}
       (nil? ticket)               {:status 403}
 
