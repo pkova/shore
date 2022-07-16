@@ -19,7 +19,7 @@
 (def ec2 (aws/client {:api :ec2}))
 (def route53 (aws/client {:api :route53}))
 
-(defn handler [{:keys [uri form-params request-method]}]
+(defn handler [{:keys [uri request-method body]}]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
         db     (d/db conn)
@@ -27,16 +27,17 @@
                               :in $ ?t
                               :where [_ :shore/ticket ?t]]
                             db
-                            (get form-params "ticket")))]
+                            (get (json/read body) "ticket")))]
     (cond
       (= :options request-method) {:status 200}
       (not= (= uri "/enter"))     {:status 404}
       (not= :post request-method) {:status 400}
       (nil? ticket)               {:status 403}
       :else
-      {:status 303
-       :headers {"Location" "https://halbex-palheb.arvo.network"
-                 "Set-Cookie" "urbauth-~halbex-palheb=0v6.2s6qo.udqdo.223t9.rkhlh.mhhn5; Path=/; Max-Age=604800; Domain=halbex-palheb.arvo.network"}})))
+      {:status 200
+       :body
+       (json/write-str {:url "https://halbex-palheb.arvo.network/~/login"
+                        :code "rontud-bannus-wismeg-roswer"})})))
 
 (defn rand-patq []
   (-> (repeatedly 8 (fn [] (unchecked-byte (rand-int 256))))

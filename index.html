@@ -7,15 +7,15 @@
     </head>
     <body>
         <center>
-            <form action="https://api.shore.arvo.network/enter" method="post">
+            <form id="form" method="post">
                 <div>
                     <label for="email">Email</label>
-                    <input type="email" name="email" required>
+                    <input id="email" type="email" name="email" required>
                 </div>
                 <br>
                 <div>
                     <label for="ticket">Ticket</label>
-                    <input type="text" name="ticket" required>
+                    <input id="ticket" type="text" name="ticket" required>
                 </div>
                 <br>
                 <div>
@@ -23,5 +23,42 @@
                 </div>
             </form>
         </center>
+        <script>
+         const post = (path, params, method='post') => {
+             const form = document.createElement('form');
+             form.method = method;
+             form.action = path;
+
+             for (const key in params) {
+                 if (params.hasOwnProperty(key)) {
+                     const hiddenField = document.createElement('input');
+                     hiddenField.type = 'hidden';
+                     hiddenField.name = key;
+                     hiddenField.value = params[key];
+
+                     form.appendChild(hiddenField);
+                 }
+             }
+
+             document.body.appendChild(form);
+             form.submit();
+         }
+
+         const form = document.getElementById('form');
+         const email = document.getElementById('email');
+         const ticket = document.getElementById('ticket');
+         form.addEventListener('submit', e => {
+           e.preventDefault();
+           fetch('https://api.shore.arvo.network/enter', {
+             method: 'POST',
+             headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({email: email.value, ticket: ticket.value})
+           })
+           .then(res => res.json())
+           .then(data => {
+             post(data.url, {password: data.code})
+           });
+         });
+        </script>
     </body>
 </html>
