@@ -30,6 +30,7 @@
                             db
                             (get form-params "ticket")))]
     (cond
+      (= :options request-method) {:status 200}
       (not= (= uri "/enter"))     {:status 404}
       (not= :post request-method) {:status 400}
       (nil? ticket)               {:status 403}
