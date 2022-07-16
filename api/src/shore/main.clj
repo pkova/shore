@@ -32,17 +32,17 @@
                               :where [_ :shore/ticket ?t]]
                             db
                             (get (safe-read-str (slurp body)) "ticket" "")))]
-    (cond
-      (= :options request-method) {:status 200
-                                   :headers {"Access-Control-Allow-Origins" "https://shore.arvo.network"
-                                             "Access-Control-Allow-Methods" "POST"}}
-      (not= (= uri "/enter"))     {:status 404}
-      (nil? ticket)               {:status 403}
+    (merge {:headers {"Access-Control-Allow-Origins" "https://shore.arvo.network"
+                      "Access-Control-Allow-Methods" "POST"}}
+     (cond
+       (= :options request-method) {:status 200}
+       (not= (= uri "/enter"))     {:status 404}
+       (nil? ticket)               {:status 403}
 
-      :else {:status 200
-             :body
-             (json/write-str {:url "https://halbex-palheb.arvo.network/~/login"
-                              :code "rontud-bannus-wismeg-roswer"})})))
+       :else {:status 200
+              :body
+              (json/write-str {:url "https://halbex-palheb.arvo.network/~/login"
+                               :code "rontud-bannus-wismeg-roswer"})}))))
 
 (defn rand-patq []
   (-> (repeatedly 8 (fn [] (unchecked-byte (rand-int 256))))
