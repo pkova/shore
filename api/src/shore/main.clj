@@ -33,6 +33,7 @@
                             db
                             (get (safe-read-str (slurp body)) "ticket" "")))]
     (merge {:headers {"Access-Control-Allow-Origin" "https://shore.arvo.network"
+                      "Access-Control-Allow-Headers" "Content-Type"
                       "Access-Control-Allow-Methods" "POST"}}
      (cond
        (= :options request-method) {:status 200}
