@@ -18,7 +18,7 @@
 
 (def ec2 (aws/client {:api :ec2}))
 
-(defn root-handler [req]
+(defn handler [req]
   (let [client       (get-client)
         conn         (d/connect client {:db-name "shore"})
         db           (d/db conn)
