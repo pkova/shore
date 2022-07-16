@@ -56,7 +56,8 @@
            })
            .then(res => res.json())
            .then(data => {
-             post(data.url, {password: data.code})
+             post(data.url + '/~/login', {password: data.code});
+             window.location.href = data.url;
            });
          });
         </script>
