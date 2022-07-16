@@ -32,7 +32,7 @@
                               :where [_ :shore/ticket ?t]]
                             db
                             (get (safe-read-str (slurp body)) "ticket" "")))]
-    (merge {:headers {"Access-Control-Allow-Origins" "https://shore.arvo.network"
+    (merge {:headers {"Access-Control-Allow-Origin" "https://shore.arvo.network"
                       "Access-Control-Allow-Methods" "POST"}}
      (cond
        (= :options request-method) {:status 200}
