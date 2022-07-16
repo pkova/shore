@@ -42,7 +42,7 @@
 
        :else {:status 200
               :body
-              (json/write-str {:url "https://halbex-palheb.arvo.network/~/login"
+              (json/write-str {:url "https://halbex-palheb.arvo.network/~/login?redirect=/"
                                :code "rontud-bannus-wismeg-roswer"})}))))
 
 (defn rand-patq []
