@@ -15,7 +15,20 @@
           :system "shore"
           :endpoint "https://ja6vetvux9.execute-api.us-east-2.amazonaws.com"})
 
-(def userdata-template (slurp (io/resource "userdata.sh")))
+(def userdata-template
+  (str/join "\n"
+            ["#!/bin/bash"
+             "set -e"
+             "dd if=/dev/zero of=/swapfile bs=128M count=16"
+             "chmod 600 /swapfile"
+             "mkswap /swapfile"
+             "swapon /swapfile"
+             "mkdir ~/urbit"
+             "cd ~/urbit"
+             "curl -JLO https://urbit.org/install/linux64/latest"
+             "tar zxvf ./linux64.tgz --strip=1"
+             "setcap 'cap_net_bind_service=+ep' ~/urbit/urbit"
+             "screen -d -m ./urbit -p 13454 -w %s -G '%s'"]))
 
 (def get-client (memoize (fn [] (d/client cfg))))
 
