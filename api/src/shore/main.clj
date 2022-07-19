@@ -71,7 +71,7 @@
                                            ] db))]
            {:status 200
             :body
-            (json/write-str {:url (format "https://%s.arvo.network" urbit-id)
+            (json/write-str {:url (format "https://%s.arvo.network" (subs urbit-id 1))
                              :code code})})))))
 
 (defn rand-patq []
