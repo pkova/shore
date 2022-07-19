@@ -25,11 +25,29 @@
         </center>
         <script>
 
+         const post = (path, params, method='post') => {
+             const form = document.createElement('form');
+             form.method = method;
+             form.action = path;
+
+             for (const key in params) {
+                 if (params.hasOwnProperty(key)) {
+                     const hiddenField = document.createElement('input');
+                     hiddenField.type = 'hidden';
+                     hiddenField.name = key;
+                     hiddenField.value = params[key];
+
+                     form.appendChild(hiddenField);
+                 }
+             }
+
+             document.body.appendChild(form);
+             form.submit();
+         }
+
          const form = document.getElementById('form');
          const email = document.getElementById('email');
          const ticket = document.getElementById('ticket');
-
-         var url;
 
          form.addEventListener('submit', e => {
            e.preventDefault();
@@ -40,15 +58,7 @@
            })
            .then(res => res.json())
            .then(data => {
-               url = data.url;
-               return fetch(data.url + '/~/login', {
-                   method: 'POST',
-                   headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                   body: 'password=' + data.code
-               })
-           })
-           .then(res => {
-               window.location.href = url;
+             post(data.url + '/~/login', {password: data.code, redirect: '/'});
            });
          });
         </script>
