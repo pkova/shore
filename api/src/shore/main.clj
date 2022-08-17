@@ -8,7 +8,13 @@
             [datomic.ion.cast :as cast]
             [datomic.ion.dev :as dev]
             [clojure.java.io :as io]
-            [cognitect.aws.client.api :as aws]))
+            [cognitect.aws.client.api :as aws])
+  (:import [com.amazonaws HttpMethod]
+           [com.amazonaws.auth.profile ProfileCredentialsProvider]
+           [com.amazonaws.regions Regions]
+           [com.amazonaws.services.s3 AmazonS3]
+           [com.amazonaws.services.s3 AmazonS3ClientBuilder]
+           [com.amazonaws.services.s3.model GeneratePresignedUrlRequest]))
 
 (def cfg {:server-type :ion
           :region "us-east-2"
@@ -35,6 +41,15 @@
 (def ec2 (aws/client {:api :ec2}))
 (def ssm (aws/client {:api :ssm}))
 (def route53 (aws/client {:api :route53}))
+
+(defn generate-presigned-url [urbit-id]
+  (str (.generatePresignedUrl
+        (-> (AmazonS3ClientBuilder/standard)
+            (.withRegion Regions/US_EAST_2) .build)
+        (-> (GeneratePresignedUrlRequest. "shore-graveyard" (str (subs urbit-id 1 ) ".tar.gz"))
+            (.withMethod HttpMethod/GET)
+            (.withExpiration (doto (java.util.Date.)
+                               (.setTime (+ 604800000 (.toEpochMilli (java.time.Instant/now))))))))))
 
 (defn b64-encode [s]
   (.encodeToString (java.util.Base64/getEncoder) (.getBytes s)))
