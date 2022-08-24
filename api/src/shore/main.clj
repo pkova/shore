@@ -21,7 +21,7 @@
           :system "shore"
           :endpoint "https://ja6vetvux9.execute-api.us-east-2.amazonaws.com"})
 
-(def userdata-template
+(defn userdata-template [urbit-id networking-key]
   (str/join "\n"
             ["#!/bin/bash"
              "set -e"
@@ -33,8 +33,19 @@
              "cd ~/urbit"
              "curl -JLO https://urbit.org/install/linux64/latest"
              "tar zxvf ./linux64.tgz --strip=1"
-             "setcap 'cap_net_bind_service=+ep' ~/urbit/urbit"
-             "screen -d -m ./urbit -p 13454 -w %s -G '%s'"]))
+             "aws s3 cp s3://shore-certs/fullchain.pem ."
+             "aws s3 cp s3://shore-certs/privkey.pem ."
+             "yum install -y yum-plugin-copr"
+             "yum copr -y enable @caddy/caddy epel-9-x86_64"
+             "yum install -y caddy"
+             "setcap 'cap_net_bind_service=+ep' /usr/bin/caddy"
+             "cat <<EOF > Caddyfile"
+             (str (subs urbit-id 1) ".arvo.network")
+             "reverse_proxy 127.0.0.1:8080"
+             "tls fullchain.pem privkey.pem"
+             "EOF"
+             (str "screen -d -m ./urbit -p 13454 -w " (subs urbit-id 1) " -G '" networking-key "'")
+             "caddy start --config Caddyfile"]))
 
 (def get-client (memoize (fn [] (d/client cfg))))
 
@@ -61,26 +72,17 @@
 (defn handler [{:keys [uri request-method body]}]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
-        db     (d/db conn)
-        ticket (ffirst (d/q '[:find ?t
-                              :in $ ?t
-                              :where [?e :ticket/patq ?t]
-                                     [?e :ticket/assigned false]]
-                            db
-                            (get (safe-read-str (slurp body)) "ticket" "")))]
-    (merge {:headers {"Access-Control-Allow-Origin" "https://shore.arvo.network"
+        db     (d/db conn)]
+    (merge {:headers {"Access-Control-Allow-Origin" "*"
                       "Access-Control-Allow-Headers" "Content-Type"
-                      "Access-Control-Allow-Methods" "POST"}}
+                      "Access-Control-Allow-Methods" "GET"}}
      (cond
        (= :options request-method) {:status 200}
        (not= (= uri "/enter"))     {:status 404}
-       (nil? ticket)               {:status 403}
-
        :else
        (let [[urbit-id code] (first (d/q '[:find ?u ?c
                                            :where [?e :ship/redeemed false]
                                                   [?e :ship/instance ?i]
-                                                  [?i :instance/certificate-acquired true]
                                                   [?e :ship/urbit-id ?u]
                                                   [?e :ship/code ?c]
                                            ] db))]
@@ -131,16 +133,13 @@
      :MinCount 1
      :MaxCount 1
      :KeyName "pyry"
-     :ImageId "ami-02d1e544b84bf7502"
+     :ImageId "ami-0c698bc099fe4e748"
      :IamInstanceProfile {:Arn "arn:aws:iam::852127795312:instance-profile/shore-role"}
      :BlockDeviceMappings [{:DeviceName "/dev/xvda" :Ebs {:VolumeSize 15
                                                          :VolumeType "gp2"
-                                                         :SnapshotId "snap-0896fac2267d1c5f1"
                                                          :DeleteOnTermination true}}]
      :SecurityGroupIds ["sg-02dcf91b9b7958722"]
-     :UserData (b64-encode (format userdata-template
-                                   (subs urbit-id 1)
-                                   networking-key))
+     :UserData (b64-encode (userdata-template urbit-id networking-key))
      :TagSpecifications [{:ResourceType "instance"
                           :Tags [{:Key "Name" :Value urbit-id}
                                  {:Key "Group" :Value "shore"}]}]}}))
@@ -149,6 +148,12 @@
   (get-in (aws/invoke ec2 {:op :DescribeInstances
                            :request {:InstanceIds [instance-id]}})
           [:Reservations 0 :Instances 0 :NetworkInterfaces 0 :Association :PublicIp]))
+
+(defn poll-public-ip [instance-id]
+  (if-let [ip (get-public-ip instance-id)]
+    ip
+    (do (Thread/sleep 5000)
+        (recur instance-id))))
 
 (defn cors-approve [ip cookie urbit-id]
   (http/put (str "http://" ip "/~/channel/shore-cors-approve")
@@ -163,18 +168,6 @@
                 :mark "belt"
                 :json {:txt (str/split "|cors-approve 'https://shore.arvo.network'" #"")}}
                {:id 1
-                :action "poke"
-                :ship (subs urbit-id 1)
-                :app "herm"
-                :mark "belt"
-                :json {:ret nil}}
-               {:id 2
-                :action "poke"
-                :ship (subs urbit-id 1)
-                :app "herm"
-                :mark "belt"
-                :json {:txt (str/split (str ":acme &path /network/arvo/" (subs urbit-id 1)) #"")}}
-               {:id 3
                 :action "poke"
                 :ship (subs urbit-id 1)
                 :app "herm"
@@ -200,16 +193,17 @@
                 ship/urbit-id
                 ship/code
                 ship/networking-key]} (ffirst (d/q '[:find (pull ?e [*])
-                                                         :where [?e :ship/redeemed false]] db))]
+                                                     :where [?e :ship/redeemed false]] db))]
     (println urbit-id)
     #_(d/transact conn {:tx-data [[:db/add id :ship/redeemed true]]})
+    (Thread/sleep 20000)
     (let [instance-id (get-in (launch-instance urbit-id networking-key)
-                              [:Instances 0 :InstanceId])]
+                              [:Instances 0 :InstanceId])
+          ip (poll-public-ip instance-id)]
       (println instance-id)
-      (Thread/sleep 10000)
-      (create-record (get-public-ip instance-id) (str (subs urbit-id 1) ".arvo.network"))
-      (Thread/sleep 900000)
-      (let [ip (get-public-ip instance-id)]
+      (println ip)
+      (create-record ip (str (subs urbit-id 1) ".arvo.network"))
+      #_(do
         (cors-approve ip (get-auth-cookie ip code) urbit-id)
         (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))

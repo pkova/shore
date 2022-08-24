@@ -58,13 +58,4 @@
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
     :db/unique :db.unique/identity
-    :db/doc "The AWS provided instance ID."}
-   {:db/ident :instance/assigned
-    :db/valueType :db.type/boolean
-    :db/cardinality :db.cardinality/one
-    :db/doc "Whether the instance has been assigned to running a ship."}
-   {:db/ident :instance/certificate-acquired
-    :db/valueType :db.type/boolean
-    :db/cardinality :db.cardinality/one
-    :db/doc "Whether /app/acme has acquired the TLS certificate for HTTPS."}
-   ])
+    :db/doc "The AWS provided instance ID."}])
