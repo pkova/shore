@@ -155,25 +155,6 @@
     (do (Thread/sleep 5000)
         (recur instance-id))))
 
-(defn cors-approve [ip cookie urbit-id]
-  (http/put (str "http://" ip "/~/channel/shore-cors-approve")
-            {:headers {"cookie" cookie
-                       "content-type" "application/json"}
-             :body
-             (json/write-str
-              [{:id 0
-                :action "poke"
-                :ship (subs urbit-id 1)
-                :app "herm"
-                :mark "belt"
-                :json {:txt (str/split "|cors-approve 'https://shore.arvo.network'" #"")}}
-               {:id 1
-                :action "poke"
-                :ship (subs urbit-id 1)
-                :app "herm"
-                :mark "belt"
-                :json {:ret nil}}])}))
-
 (defn graveyard-instance [instance-id urbit-id]
   (let [no-sig (subs urbit-id 1)]
     (aws/invoke
@@ -204,7 +185,6 @@
       (println ip)
       (create-record ip (str (subs urbit-id 1) ".arvo.network"))
       #_(do
-        (cors-approve ip (get-auth-cookie ip code) urbit-id)
         (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))
 
