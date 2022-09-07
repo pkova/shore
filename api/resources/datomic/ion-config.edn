@@ -1,2 +1,3 @@
 {:http-direct {:handler-fn shore.main/handler}
+ :lambdas {:register-comet {:fn shore.main/register-comet}}
  :app-name "shore"}

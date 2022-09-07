@@ -188,4 +188,6 @@
         (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))
 
+(defn register-comet [{:keys [input]}])
+
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
