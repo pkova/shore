@@ -233,7 +233,7 @@
     (create-record (get-public-ip instanceId) url)
     (d/transact conn {:tx-data [{:ship/urbit-id our
                                  :ship/code code
-                                 :ship/type comet
+                                 :ship/type :comet
                                  :ship/redeemed false
                                  :ship/instance {:db/id [:instance/id instanceId]}}]})))
 
