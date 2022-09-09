@@ -220,7 +220,8 @@
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))
 
 (defn birth-comet []
-  (let [instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
+  (let [conn (d/connect (get-client) {:db-name "shore"})
+        instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
     (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})))
 
 (defn register-comet [{:keys [input]}]
