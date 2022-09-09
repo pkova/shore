@@ -222,7 +222,7 @@
 (defn register-comet [{:keys [input]}]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
-        {:keys [our code instanceId]} (json/read-str input)
+        {:strs [our code instanceId]} (json/read-str input)
         comet (str/split (subs our 1) #"-")
         url (str (first comet) "_" (last comet) ".arvo.network")]
     (create-record (get-public-ip instanceId) url)
