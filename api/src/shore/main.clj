@@ -231,10 +231,10 @@
         comet (str/split (subs our 1) #"-")
         url (str (first comet) "_" (last comet) ".arvo.network")]
     (create-record (get-public-ip instanceId) url)
-    (d/transact conn {:tx-data [{:ship/urbit-id our
-                                 :ship/code code
-                                 :ship/type :comet
-                                 :ship/redeemed false
-                                 :ship/instance {:db/id [:instance/id instanceId]}}]})))
+    (pr-str (d/transact conn {:tx-data [{:ship/urbit-id our
+                                         :ship/code code
+                                         :ship/type :comet
+                                         :ship/redeemed false
+                                         :ship/instance {:db/id [:instance/id instanceId]}}]}))))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
