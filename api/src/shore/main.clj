@@ -47,6 +47,30 @@
              (str "screen -d -m ./urbit -p 13454 -w " (subs urbit-id 1) " -G '" networking-key "'")
              "caddy start --config Caddyfile"]))
 
+(def userdata-template-comet
+  (str/join "\n"
+            ["#!/bin/bash"
+             "set -e"
+             "dd if=/dev/zero of=/swapfile bs=128M count=16"
+             "chmod 600 /swapfile"
+             "mkswap /swapfile"
+             "swapon /swapfile"
+             "mkdir ~/urbit"
+             "cd ~/urbit"
+             "curl -JLO https://urbit.org/install/linux64/latest"
+             "tar zxvf ./linux64.tgz --strip=1"
+             "aws s3 cp s3://shore-certs/fullchain.pem ."
+             "aws s3 cp s3://shore-certs/privkey.pem ."
+             "aws s3 cp s3://shore-certs/comet-booter ."
+             "chmod a+x ./comet-booter"
+             "yum install -y yum-plugin-copr"
+             "yum copr -y enable @caddy/caddy epel-9-x86_64"
+             "yum install -y caddy"
+             "setcap 'cap_net_bind_service=+ep' /usr/bin/caddy"
+             "screen -d -m ./urbit -p 13454 comet"
+             "./comet-booter"
+             "caddy start --config Caddyfile"]))
+
 (def get-client (memoize (fn [] (d/client cfg))))
 
 (def ec2 (aws/client {:api :ec2}))
@@ -124,25 +148,30 @@
       (str/split #";")
       first))
 
-(defn launch-instance [urbit-id networking-key]
-  (aws/invoke
-   ec2
-   {:op :RunInstances
-    :request
-    {:InstanceType "t2.micro"
-     :MinCount 1
-     :MaxCount 1
-     :KeyName "pyry"
-     :ImageId "ami-0c698bc099fe4e748"
-     :IamInstanceProfile {:Arn "arn:aws:iam::852127795312:instance-profile/shore-role"}
-     :BlockDeviceMappings [{:DeviceName "/dev/xvda" :Ebs {:VolumeSize 15
-                                                         :VolumeType "gp2"
-                                                         :DeleteOnTermination true}}]
-     :SecurityGroupIds ["sg-02dcf91b9b7958722"]
-     :UserData (b64-encode (userdata-template urbit-id networking-key))
-     :TagSpecifications [{:ResourceType "instance"
-                          :Tags [{:Key "Name" :Value urbit-id}
-                                 {:Key "Group" :Value "shore"}]}]}}))
+(defn launch-instance
+  ([]
+   (launch-instance nil nil))
+  ([urbit-id networking-key]
+   (aws/invoke
+    ec2
+    {:op :RunInstances
+     :request
+     {:InstanceType "t2.micro"
+      :MinCount 1
+      :MaxCount 1
+      :KeyName "pyry"
+      :ImageId "ami-0c698bc099fe4e748"
+      :IamInstanceProfile {:Arn "arn:aws:iam::852127795312:instance-profile/shore-role"}
+      :BlockDeviceMappings [{:DeviceName "/dev/xvda" :Ebs {:VolumeSize 15
+                                                           :VolumeType "gp2"
+                                                           :DeleteOnTermination true}}]
+      :SecurityGroupIds ["sg-02dcf91b9b7958722"]
+      :UserData (b64-encode (if (nil? urbit-id)
+                              userdata-template-comet
+                              (userdata-template urbit-id networking-key)))
+      :TagSpecifications [{:ResourceType "instance"
+                           :Tags [{:Key "Name" :Value (if (nil? urbit-id) "comet" urbit-id)}
+                                  {:Key "Group" :Value "shore"}]}]}})))
 
 (defn get-public-ip [instance-id]
   (get-in (aws/invoke ec2 {:op :DescribeInstances
@@ -169,12 +198,14 @@
                              (format "aws s3 cp /root/urbit/%s.tar.gz s3://shore-graveyard" no-sig)
                              (format "aws ec2 terminate-instances --region us-east-2 --instance-ids %s" instance-id)]}}})))
 
-(defn birth-instance [db conn]
+(defn birth-planet [db conn]
   (let [{:keys [db/id
                 ship/urbit-id
                 ship/code
                 ship/networking-key]} (ffirst (d/q '[:find (pull ?e [*])
-                                                     :where [?e :ship/redeemed false]] db))]
+                                                     :where [?e :ship/redeemed false]
+                                                            [?e :ship/type :planet]
+                                                     ] db))]
     (println urbit-id)
     #_(d/transact conn {:tx-data [[:db/add id :ship/redeemed true]]})
     (Thread/sleep 20000)
@@ -188,6 +219,17 @@
         (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))
 
-(defn register-comet [{:keys [input]}])
+(defn register-comet [{:keys [input]}]
+  (let [client (get-client)
+        conn   (d/connect client {:db-name "shore"})
+        {:keys [our code instanceId]} (json/read-str input)
+        comet (str/split (subs our 1) #"-")
+        url (str (first comet) "_" (last comet) ".arvo.network")]
+    (create-record (get-public-ip instanceId) url)
+    (d/transact conn {:tx-data [{:ship/urbit-id our
+                                 :ship/code code
+                                 :ship/type comet
+                                 :ship/redeemed false
+                                 :ship/instance {:db/id [:instance/id instanceId]}}]})))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))

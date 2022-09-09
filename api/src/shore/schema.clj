@@ -31,7 +31,11 @@
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
     :db/unique :db.unique/identity
-    :db/doc "@p for the ship, always a L2 planet."}
+    :db/doc "@p for the ship, L2 planet or comet."}
+   {:db/ident :ship/type
+    :db/valueType :db.type/keyword
+    :db/cardinality :db.cardinality/one
+    :db/doc "Type of ship, :planet or :comet."}
    {:db/ident :ship/activation-ticket
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
