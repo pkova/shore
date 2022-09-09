@@ -67,7 +67,7 @@
              "yum copr -y enable @caddy/caddy epel-9-x86_64"
              "yum install -y caddy"
              "setcap 'cap_net_bind_service=+ep' /usr/bin/caddy"
-             "screen -d -m ./urbit -p 13454 comet"
+             "screen -d -m ./urbit -p 13454 --http-port 8080 comet"
              "./comet-booter"
              "caddy start --config Caddyfile"]))
 
@@ -218,6 +218,10 @@
       #_(do
         (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})
         (d/transact conn {:tx-data [[:db/add [:ship/urbit-id urbit-id] :ship/instance [:instance/id instance-id]]]})))))
+
+(defn birth-comet []
+  (let [instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
+    (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})))
 
 (defn register-comet [{:keys [input]}]
   (let [client (get-client)
