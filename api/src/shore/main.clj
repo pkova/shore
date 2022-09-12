@@ -77,6 +77,10 @@
 (def ssm (aws/client {:api :ssm}))
 (def route53 (aws/client {:api :route53}))
 
+(defn comet->url [comet]
+  (let [c (str/split (subs comet 1) #"-")]
+    (str (first c) "_" (last c) ".arvo.network")))
+
 (defn generate-presigned-url [urbit-id]
   (str (.generatePresignedUrl
         (-> (AmazonS3ClientBuilder/standard)
@@ -93,27 +97,47 @@
   (try (json/read-str s)
        (catch Exception _ nil)))
 
-(defn handler [{:keys [uri request-method body]}]
+(defn handle-count [db]
+  (let [res (ffirst (d/q '[:find (count ?e)
+                           :where [?e :ship/redeemed false]
+                                  [?e :ship/type :comet]
+                                  [?e :ship/instance ?i]
+                                  [?e :ship/urbit-id ?u]
+                                  [?e :ship/code ?c]]
+                         db))]
+    {:status 200
+     :body (json/write-str {:count (if (nil? res) 0 res)})}))
+
+(defn handle-enter [db conn]
+  (let [[id urbit-id code] (first (d/q '[:find ?e ?u ?c
+                                         :where [?e :ship/redeemed false]
+                                                [?e :ship/type :comet]
+                                                [?e :ship/instance ?i]
+                                                [?e :ship/urbit-id ?u]
+                                                [?e :ship/code ?c]]
+                                       db))]
+    (if (nil? id)
+      {:status 503}
+      (do
+        (d/transact conn {:tx-data [[:db/cas id :ship/redeemed false true]
+                                    [:db/add id :ship/redeemed-at (java.util.Date.)]]})
+        {:status 200
+         :body (json/write-str {:url (comet->url urbit-id)
+                                :code code})}))))
+
+(defn handler [{:keys [uri request-method]}]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
         db     (d/db conn)]
     (merge {:headers {"Access-Control-Allow-Origin" "*"
                       "Access-Control-Allow-Headers" "Content-Type"
                       "Access-Control-Allow-Methods" "GET"}}
-     (cond
-       (= :options request-method) {:status 200}
-       (not= (= uri "/enter"))     {:status 404}
-       :else
-       (let [[urbit-id code] (first (d/q '[:find ?u ?c
-                                           :where [?e :ship/redeemed false]
-                                                  [?e :ship/instance ?i]
-                                                  [?e :ship/urbit-id ?u]
-                                                  [?e :ship/code ?c]
-                                           ] db))]
-           {:status 200
-            :body
-            (json/write-str {:url (format "https://%s.arvo.network" (subs urbit-id 1))
-                             :code code})})))))
+           (cond
+             (= :options request-method) {:status 200}
+             (not= :get request-method)  {:status 405}
+             (= "/count" uri)            (handle-count db)
+             (= "/enter" uri)            (handle-enter db conn)
+             :else                       {:status 404}))))
 
 (defn rand-patq []
   (-> (repeatedly 8 (fn [] (unchecked-byte (rand-int 256))))
@@ -224,13 +248,12 @@
         instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
     (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})))
 
+
 (defn register-comet [{:keys [input]}]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
-        {:strs [our code instanceId]} (json/read-str input)
-        comet (str/split (subs our 1) #"-")
-        url (str (first comet) "_" (last comet) ".arvo.network")]
-    (create-record (get-public-ip instanceId) url)
+        {:strs [our code instanceId]} (json/read-str input)]
+    (create-record (get-public-ip instanceId) (comet->url our))
     (pr-str (d/transact conn {:tx-data [{:ship/urbit-id our
                                          :ship/code code
                                          :ship/type :comet
