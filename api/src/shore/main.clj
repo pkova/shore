@@ -197,6 +197,9 @@
                            :Tags [{:Key "Name" :Value (if (nil? urbit-id) "comet" urbit-id)}
                                   {:Key "Group" :Value "shore"}]}]}})))
 
+(defn terminate-instance [instance-id]
+  (aws/invoke ec2 {:op :TerminateInstances :request {:InstanceIds [instance-id]}}))
+
 (defn get-public-ip [instance-id]
   (get-in (aws/invoke ec2 {:op :DescribeInstances
                            :request {:InstanceIds [instance-id]}})
