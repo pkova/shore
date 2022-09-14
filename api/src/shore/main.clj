@@ -137,7 +137,9 @@
              (not= :get request-method)  {:status 405}
              (= "/count" uri)            (handle-count db)
              (= "/enter" uri)            (handle-enter db conn)
-             :else                       {:status 404}))))
+             :else                       {:status 301
+                                          :headers
+                                          {"Location" "https://urbit.org/trial-over"}}))))
 
 (defn rand-patq []
   (-> (repeatedly 8 (fn [] (unchecked-byte (rand-int 256))))
