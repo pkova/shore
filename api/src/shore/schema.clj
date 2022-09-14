@@ -56,6 +56,10 @@
     :db/valueType :db.type/instant
     :db/cardinality :db.cardinality/one
     :db/doc "The timestamp when the ship was redeemed at."}
+   {:db/ident :ship/terminated-at
+    :db/valueType :db.type/instant
+    :db/cardinality :db.cardinality/one
+    :db/doc "The timestamp when the ship was terminated at."}
    {:db/ident :ship/instance
     :db/valueType :db.type/ref
     :db/cardinality :db.cardinality/one
