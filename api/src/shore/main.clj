@@ -122,7 +122,7 @@
         (d/transact conn {:tx-data [[:db/cas id :ship/redeemed false true]
                                     [:db/add id :ship/redeemed-at (java.util.Date.)]]})
         {:status 200
-         :body (json/write-str {:url (comet->url urbit-id)
+         :body (json/write-str {:url (str "https://" (comet->url urbit-id))
                                 :code code})}))))
 
 (defn handler [{:keys [uri request-method]}]
