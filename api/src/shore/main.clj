@@ -152,6 +152,22 @@
        (assoc {} :tx-data)
        (d/transact conn)))
 
+(defn create-redirect-record [url]
+  (aws/invoke
+   route53
+   {:op :ChangeResourceRecordSets
+    :request
+    {:HostedZoneId "Z00172511EBQKL94RJ8AW"
+     :ChangeBatch
+     {:Changes
+      [{:Action "UPSERT"
+        :ResourceRecordSet
+        {:Name url
+         :Type "A"
+         :AliasTarget {:HostedZoneId "ZOJJZC49E0EPZ"
+                       :DNSName "d-fouxismyyb.execute-api.us-east-2.amazonaws.com"
+                       :EvaluateTargetHealth false}}}]}}}))
+
 (defn create-record [ip url]
   (aws/invoke
    route53
@@ -264,5 +280,37 @@
                                          :ship/type :comet
                                          :ship/redeemed false
                                          :ship/instance {:db/id [:instance/id instanceId]}}]}))))
+
+(defn cleanup-instances [_]
+  (let [client (get-client)
+        conn   (d/connect client {:db-name "shore"})
+        db     (d/db conn)
+        t      (java.util.Date/from
+                (.toInstant
+                 (.minusDays (java.time.LocalDateTime/now) 1)
+                 java.time.ZoneOffset/UTC))
+        is     (d/q '[:find ?e ?c ?i
+                      :in $ ?t
+                      :where [?e :ship/redeemed-at ?r]
+                             [(< ?r ?t)]
+                             [(missing? $ ?e :ship/terminated-at)]
+                             [?e :ship/instance ?in]
+                             [?in :instance/id ?i]
+                             [?e :ship/urbit-id ?c]]
+                    db t)]
+    (doseq [[e c i] is]
+      (create-redirect-record (comet->url c))
+      (terminate-instance i)
+      (d/transact conn {:tx-data [[:db/add e :ship/terminated-at (java.util.Date.)]]}))
+    (str "cleaned up " (count is) " instances")))
+
+(defn top-up-instances [_]
+  (let [client (get-client)
+        conn   (d/connect client {:db-name "shore"})
+        db     (d/db conn)
+        is     (ffirst (d/q '[:find (count ?e)
+                              :where [?e :ship/type :comet]
+                                     [?e :ship/instance]
+                                     [?e :ship/redeemed false]] db))]))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
