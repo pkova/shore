@@ -47,6 +47,7 @@
              "tls fullchain.pem privkey.pem"
              "EOF"
              (str "screen -d -m ./urbit -p 13454 --http-port 8080 -w " (subs urbit-id 1) " -G '" networking-key "'")
+             "./moon-booter"
              "caddy start --config Caddyfile"]))
 
 (def userdata-template-comet
@@ -195,6 +196,12 @@
       (str/split #";")
       first))
 
+(defn get-moon-spawner-cookie [db]
+  (let [code (ffirst (d/q '[:find ?c
+                            :where [?e :ship/urbit-id "~rosmyn-fordet"]
+                            [?e :ship/code ?c]]))]
+    (get-auth-cookie "~rosmyn-fordet" code)))
+
 (defn launch-instance
   ([]
    (launch-instance nil nil))
@@ -325,11 +332,12 @@
         instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
     (d/transact conn {:tx-data [{:instance/id instance-id}]})))
 
-(defn birth-moon [planet-code]
+(defn birth-moon [cookie]
   (let [conn (d/connect (get-client) {:db-name "shore"})
-        moon (get-moon (get-auth-cookie "~rosmyn-fordet" planet-code))]
-    (launch-instance (:ship/urbit-id moon) (:ship/networking-key moon))
-    (d/transact conn {:tx-data [moon]})))
+        moon (get-moon cookie)
+        instance-id  (get-in (launch-instance (:ship/urbit-id moon) (:ship/networking-key moon))
+                             [:Instances 0 :InstanceId])]
+    (d/transact conn {:tx-data [moon {:instance/id instance-id}]})))
 
 (defn register-moon [{:keys [input]}]
   (let [client (get-client)
@@ -339,7 +347,7 @@
     (pr-str (d/transact
              conn
              {:tx-data [[:db/add [:ship/urbit-id our] :ship/code code]
-                        [:db/add [:ship/urbit-id our] :ship/instance {:db/id [:instance/id instanceId]}]]}))))
+                        [:db/add [:ship/urbit-id our] :ship/instance [:instance/id instanceId]]]}))))
 
 (defn register-comet [{:keys [input]}]
   (let [client (get-client)
@@ -356,6 +364,7 @@
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
         db     (d/db conn)
+        cookie (get-moon-spawner-cookie db)
         t      (java.util.Date/from
                 (.toInstant
                  (.minusDays (java.time.LocalDateTime/now) 1)
@@ -370,19 +379,24 @@
                              [?in :instance/id ?i]
                              [?e :ship/urbit-id ?c]]
                     db t)]
-    (doseq [[e c i] is]
-      (create-redirect-record (moon->url c))
+    (doseq [[e m i] is]
+      (create-redirect-record (moon->url m))
+      (breach-moon m cookie)
       (terminate-instance i)
       (d/transact conn {:tx-data [[:db/add e :ship/terminated-at (java.util.Date.)]]}))
-    (str "cleaned up " (count is) " instances")))
+    (str "cleaned up " (count is) " instances, birthed " (top-up-instances cookie) "instances")))
 
-(defn top-up-instances [_]
+(defn top-up-instances [cookie]
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
         db     (d/db conn)
         is     (ffirst (d/q '[:find (count ?e)
-                              :where [?e :ship/type :comet]
-                                     [?e :ship/instance]
-                                     [?e :ship/redeemed false]] db))]))
+                              :where [?e :ship/type :moon]
+                                     [?e :ship/instance ?i]
+                                     [(missing? $ ?e :ship/terminated-at)]
+                              ] db))]
+    (dotimes [_ (- 256 is)]
+      (birth-moon cookie))
+    (- 256 is)))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
