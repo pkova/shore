@@ -359,6 +359,18 @@
                                          :ship/type :comet
                                          :ship/redeemed false
                                          :ship/instance {:db/id [:instance/id instanceId]}}]}))))
+(defn top-up-instances [cookie]
+  (let [client (get-client)
+        conn   (d/connect client {:db-name "shore"})
+        db     (d/db conn)
+        is     (ffirst (d/q '[:find (count ?e)
+                              :where [?e :ship/type :moon]
+                              [?e :ship/instance ?i]
+                              [(missing? $ ?e :ship/terminated-at)]
+                              ] db))]
+    (dotimes [_ (- 256 is)]
+      (birth-moon cookie))
+    (- 256 is)))
 
 (defn cleanup-instances [_]
   (let [client (get-client)
@@ -385,18 +397,5 @@
       (terminate-instance i)
       (d/transact conn {:tx-data [[:db/add e :ship/terminated-at (java.util.Date.)]]}))
     (str "cleaned up " (count is) " instances, birthed " (top-up-instances cookie) "instances")))
-
-(defn top-up-instances [cookie]
-  (let [client (get-client)
-        conn   (d/connect client {:db-name "shore"})
-        db     (d/db conn)
-        is     (ffirst (d/q '[:find (count ?e)
-                              :where [?e :ship/type :moon]
-                                     [?e :ship/instance ?i]
-                                     [(missing? $ ?e :ship/terminated-at)]
-                              ] db))]
-    (dotimes [_ (- 256 is)]
-      (birth-moon cookie))
-    (- 256 is)))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
