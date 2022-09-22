@@ -1,4 +1,5 @@
 {:http-direct {:handler-fn shore.main/handler}
  :lambdas {:register-comet {:fn shore.main/register-comet}
+           :register-moon {:fn shore.main/register-moon}
            :cleanup-instances {:fn shore.main/cleanup-instances}}
  :app-name "shore"}

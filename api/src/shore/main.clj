@@ -35,6 +35,8 @@
              "tar zxvf ./linux64.tgz --strip=1"
              "aws s3 cp s3://shore-certs/fullchain.pem ."
              "aws s3 cp s3://shore-certs/privkey.pem ."
+             "aws s3 cp s3://shore-certs/moon-booter ."
+             "chmod a+x ./moon-booter"
              "yum install -y yum-plugin-copr"
              "yum copr -y enable @caddy/caddy epel-9-x86_64"
              "yum install -y caddy"
@@ -44,7 +46,7 @@
              "reverse_proxy 127.0.0.1:8080"
              "tls fullchain.pem privkey.pem"
              "EOF"
-             (str "screen -d -m ./urbit -p 13454 -w " (subs urbit-id 1) " -G '" networking-key "'")
+             (str "screen -d -m ./urbit -p 13454 --http-port 8080 -w " (subs urbit-id 1) " -G '" networking-key "'")
              "caddy start --config Caddyfile"]))
 
 (def userdata-template-comet
@@ -76,6 +78,9 @@
 (def ec2 (aws/client {:api :ec2}))
 (def ssm (aws/client {:api :ssm}))
 (def route53 (aws/client {:api :route53}))
+
+(defn moon->url [moon]
+  (str (subs moon 1) ".arvo.network"))
 
 (defn comet->url [comet]
   (let [c (str/split (subs comet 1) #"-")]
@@ -111,7 +116,7 @@
 (defn handle-enter [db conn]
   (let [[id urbit-id code] (first (d/q '[:find ?e ?u ?c
                                          :where [?e :ship/redeemed false]
-                                                [?e :ship/type :comet]
+                                                [?e :ship/type :moon]
                                                 [?e :ship/instance ?i]
                                                 [?e :ship/urbit-id ?u]
                                                 [?e :ship/code ?c]]
@@ -122,7 +127,7 @@
         (d/transact conn {:tx-data [[:db/cas id :ship/redeemed false true]
                                     [:db/add id :ship/redeemed-at (java.util.Date.)]]})
         {:status 200
-         :body (json/write-str {:url (str "https://" (comet->url urbit-id))
+         :body (json/write-str {:url (str "https://" (moon->url urbit-id))
                                 :code code})}))))
 
 (defn handler [{:keys [uri request-method]}]
@@ -183,8 +188,8 @@
          :TTL 300
          :ResourceRecords [{:Value ip}]}}]}}}))
 
-(defn get-auth-cookie [ip code]
-  (-> (http/post (str "http://" ip "/~/login") {:form-params {:password code}})
+(defn get-auth-cookie [urbit-id code]
+  (-> (http/post (str "https://" (subs urbit-id 1) ".arvo.network/~/login") {:form-params {:password code}})
       :headers
       (get "set-cookie")
       (str/split #";")
@@ -243,14 +248,65 @@
                              (format "aws s3 cp /root/urbit/%s.tar.gz s3://shore-graveyard" no-sig)
                              (format "aws ec2 terminate-instances --region us-east-2 --instance-ids %s" instance-id)]}}})))
 
+(defn get-moon [cookie]
+  (let [headers {"cookie" cookie
+                 "content-type" "application/json"}
+        slog    (http/get "https://rosmyn-fordet.arvo.network/~_~/slog"
+                      {:headers headers :as :stream})]
+    (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
+              {:headers headers
+               :body
+               (json/write-str
+                [{:id 0
+                  :action "poke"
+                  :ship "rosmyn-fordet"
+                  :app "herm"
+                  :mark "belt"
+                  :json {:txt (str/split "|moon" #"")}}
+                 {:id 1
+                  :action "poke"
+                  :ship "rosmyn-fordet"
+                  :app "herm"
+                  :mark "belt"
+                  :json {:ret nil}}])})
+    (loop [x (line-seq (clojure.java.io/reader (:body slog)))
+           i 0]
+      (if (str/starts-with? (first x) "data:moon" )
+        {:ship/urbit-id (second (str/split (first x) #" "))
+         :ship/networking-key (subs (first (next (next x))) 5)
+         :ship/type :moon
+         :ship/redeemed false}
+        (if (> i 50)
+          (throw (Exception. "slog does not contain moon data"))
+          (recur (next x) (inc i)))))))
+
+(defn breach-moon [urbit-id cookie]
+  (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
+            {:headers {"cookie" cookie
+                       "content-type" "application/json"}
+             :body
+             (json/write-str
+              [{:id 0
+                :action "poke"
+                :ship "rosmyn-fordet"
+                :app "herm"
+                :mark "belt"
+                :json {:txt (str/split (str "|moon-breach " urbit-id) #"")}}
+               {:id 1
+                :action "poke"
+                :ship "rosmyn-fordet"
+                :app "herm"
+                :mark "belt"
+                :json {:ret nil}}])}))
+
 (defn birth-planet [db conn]
   (let [{:keys [db/id
                 ship/urbit-id
                 ship/code
                 ship/networking-key]} (ffirst (d/q '[:find (pull ?e [*])
                                                      :where [?e :ship/redeemed false]
-                                                            [?e :ship/type :planet]
-                                                     ] db))]
+                                                            [?e :ship/type :planet]]
+                                                   db))]
     (println urbit-id)
     #_(d/transact conn {:tx-data [[:db/add id :ship/redeemed true]]})
     (Thread/sleep 20000)
@@ -267,8 +323,23 @@
 (defn birth-comet []
   (let [conn (d/connect (get-client) {:db-name "shore"})
         instance-id (get-in (launch-instance) [:Instances 0 :InstanceId])]
-    (d/transact conn {:tx-data [{:instance/id instance-id :instance/assigned false}]})))
+    (d/transact conn {:tx-data [{:instance/id instance-id}]})))
 
+(defn birth-moon [planet-code]
+  (let [conn (d/connect (get-client) {:db-name "shore"})
+        moon (get-moon (get-auth-cookie "~rosmyn-fordet" planet-code))]
+    (launch-instance (:ship/urbit-id moon) (:ship/networking-key moon))
+    (d/transact conn {:tx-data [moon]})))
+
+(defn register-moon [{:keys [input]}]
+  (let [client (get-client)
+        conn   (d/connect client {:db-name "shore"})
+        {:strs [our code instanceId]} (json/read-str input)]
+    (create-record (get-public-ip instanceId) (moon->url our))
+    (pr-str (d/transact
+             conn
+             {:tx-data [[:db/add [:ship/urbit-id our] :ship/code code]
+                        [:db/add [:ship/urbit-id our] :ship/instance {:db/id [:instance/id instanceId]}]]}))))
 
 (defn register-comet [{:keys [input]}]
   (let [client (get-client)
@@ -294,12 +365,13 @@
                       :where [?e :ship/redeemed-at ?r]
                              [(< ?r ?t)]
                              [(missing? $ ?e :ship/terminated-at)]
+                             [?e :ship/type :moon]
                              [?e :ship/instance ?in]
                              [?in :instance/id ?i]
                              [?e :ship/urbit-id ?c]]
                     db t)]
     (doseq [[e c i] is]
-      (create-redirect-record (comet->url c))
+      (create-redirect-record (moon->url c))
       (terminate-instance i)
       (d/transact conn {:tx-data [[:db/add e :ship/terminated-at (java.util.Date.)]]}))
     (str "cleaned up " (count is) " instances")))

@@ -35,7 +35,7 @@
    {:db/ident :ship/type
     :db/valueType :db.type/keyword
     :db/cardinality :db.cardinality/one
-    :db/doc "Type of ship, :planet or :comet."}
+    :db/doc "Type of ship, :planet, :comet or :moon."}
    {:db/ident :ship/activation-ticket
     :db/valueType :db.type/string
     :db/cardinality :db.cardinality/one
