@@ -199,7 +199,7 @@
 (defn get-moon-spawner-cookie [db]
   (let [code (ffirst (d/q '[:find ?c
                             :where [?e :ship/urbit-id "~rosmyn-fordet"]
-                            [?e :ship/code ?c]]))]
+                            [?e :ship/code ?c]] db))]
     (get-auth-cookie "~rosmyn-fordet" code)))
 
 (defn launch-instance
@@ -396,6 +396,6 @@
       (breach-moon m cookie)
       (terminate-instance i)
       (d/transact conn {:tx-data [[:db/add e :ship/terminated-at (java.util.Date.)]]}))
-    (str "cleaned up " (count is) " instances, birthed " (top-up-instances cookie) "instances")))
+    (str "cleaned up " (count is) " instances, birthed " (top-up-instances cookie) " instances")))
 
 ;; (def conn (d/connect (get-client) {:db-name "shore"}))
