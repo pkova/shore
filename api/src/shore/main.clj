@@ -312,8 +312,7 @@
                 ship/code
                 ship/networking-key]} (ffirst (d/q '[:find (pull ?e [*])
                                                      :where [?e :ship/redeemed false]
-                                                            [?e :ship/type :planet]]
-                                                   db))]
+                                                            [?e :ship/type :planet]] db))]
     (println urbit-id)
     #_(d/transact conn {:tx-data [[:db/add id :ship/redeemed true]]})
     (Thread/sleep 20000)
@@ -365,12 +364,12 @@
         db     (d/db conn)
         is     (ffirst (d/q '[:find (count ?e)
                               :where [?e :ship/type :moon]
-                              [?e :ship/instance ?i]
-                              [(missing? $ ?e :ship/terminated-at)]
-                              ] db))]
-    (dotimes [_ (- 256 is)]
+                                     [?e :ship/instance ?i]
+                                     [(missing? $ ?e :ship/terminated-at)]]
+                            db))]
+    (dotimes [_ (- 128 is)]
       (birth-moon cookie))
-    (- 256 is)))
+    (- 128 is)))
 
 (defn cleanup-instances [_]
   (let [client (get-client)
