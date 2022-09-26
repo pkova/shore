@@ -280,13 +280,19 @@
                   :app "herm"
                   :mark "belt"
                   :json {:txt (str/split (str "(slog ~[[%leaf \"" uuid "\"]])") #"")}}
-                 {:id 1
+                 {:id 2
+                  :action "poke"
+                  :ship "rosmyn-fordet"
+                  :app "herm"
+                  :mark "belt"
+                  :json {:ret nil}}
+                 {:id 3
                   :action "poke"
                   :ship "rosmyn-fordet"
                   :app "herm"
                   :mark "belt"
                   :json {:txt (str/split "|moon" #"")}}
-                 {:id 2
+                 {:id 4
                   :action "poke"
                   :ship "rosmyn-fordet"
                   :app "herm"
