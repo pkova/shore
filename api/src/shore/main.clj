@@ -255,28 +255,44 @@
                              (format "aws s3 cp /root/urbit/%s.tar.gz s3://shore-graveyard" no-sig)
                              (format "aws ec2 terminate-instances --region us-east-2 --instance-ids %s" instance-id)]}}})))
 
+(defn seek-slog [uuid slog-body]
+  (loop [x (line-seq (clojure.java.io/reader slog-body))
+         i 0]
+    (if (= (first x) (str "data:" uuid))
+      (rest x)
+      (if (> i 50)
+        (throw (Exception. "slog does not contain uuid mark"))
+        (recur (next x) (inc i))))))
+
 (defn get-moon [cookie]
   (let [headers {"cookie" cookie
                  "content-type" "application/json"}
+        uuid    (java.util.UUID/randomUUID)
         slog    (http/get "https://rosmyn-fordet.arvo.network/~_~/slog"
                       {:headers headers :as :stream})]
-    (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
+    (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" uuid)
               {:headers headers
                :body
                (json/write-str
-                [{:id 0
+                [{:id 1
                   :action "poke"
                   :ship "rosmyn-fordet"
                   :app "herm"
                   :mark "belt"
-                  :json {:txt (str/split "|moon" #"")}}
+                  :json {:txt (str/split (str "(slog ~[[%leaf \"" uuid "\"]])") #"")}}
                  {:id 1
                   :action "poke"
                   :ship "rosmyn-fordet"
                   :app "herm"
                   :mark "belt"
+                  :json {:txt (str/split "|moon" #"")}}
+                 {:id 2
+                  :action "poke"
+                  :ship "rosmyn-fordet"
+                  :app "herm"
+                  :mark "belt"
                   :json {:ret nil}}])})
-    (loop [x (line-seq (clojure.java.io/reader (:body slog)))
+    (loop [x (seek-slog uuid (:body slog))
            i 0]
       (if (str/starts-with? (first x) "data:moon" )
         {:ship/urbit-id (second (str/split (first x) #" "))
