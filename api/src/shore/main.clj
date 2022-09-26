@@ -106,7 +106,7 @@
 (defn handle-count [db]
   (let [res (ffirst (d/q '[:find (count ?e)
                            :where [?e :ship/redeemed false]
-                                  [?e :ship/type :comet]
+                                  [?e :ship/type :moon]
                                   [?e :ship/instance ?i]
                                   [?e :ship/urbit-id ?u]
                                   [?e :ship/code ?c]]
