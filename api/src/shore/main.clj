@@ -25,6 +25,11 @@
   (str/join "\n"
             ["#!/bin/bash"
              "set -e"
+             "ec2shutdown() {"
+             "   echo \"UserData was unsuccessful!\""
+             "   shutdown -h now"
+             "}"
+             "trap 'ec2shutdown' ERR"
              "dd if=/dev/zero of=/swapfile bs=128M count=16"
              "chmod 600 /swapfile"
              "mkswap /swapfile"
@@ -54,6 +59,11 @@
   (str/join "\n"
             ["#!/bin/bash"
              "set -e"
+             "ec2shutdown() {"
+             "   echo \"UserData was unsuccessful!\""
+             "   shutdown -h now"
+             "}"
+             "trap 'ec2shutdown' ERR"
              "dd if=/dev/zero of=/swapfile bs=128M count=16"
              "chmod 600 /swapfile"
              "mkswap /swapfile"
@@ -223,6 +233,7 @@
       :UserData (b64-encode (if (nil? urbit-id)
                               userdata-template-comet
                               (userdata-template urbit-id networking-key)))
+      :InstanceInitiatedShutdownBehavior "terminate"
       :TagSpecifications [{:ResourceType "instance"
                            :Tags [{:Key "Name" :Value (if (nil? urbit-id) "comet" urbit-id)}
                                   {:Key "Group" :Value "shore"}]}]}})))
