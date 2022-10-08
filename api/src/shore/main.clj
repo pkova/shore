@@ -400,9 +400,9 @@
                                      [?e :ship/instance ?i]
                                      [(missing? $ ?e :ship/terminated-at)]]
                             db))]
-    (dotimes [_ (- 128 is)]
+    (dotimes [_ (- 64 is)]
       (birth-moon cookie))
-    (- 128 is)))
+    (- 64 is)))
 
 (defn cleanup-instances [_]
   (let [client (get-client)
