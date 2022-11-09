@@ -395,11 +395,11 @@
   (let [client (get-client)
         conn   (d/connect client {:db-name "shore"})
         db     (d/db conn)
-        is     (ffirst (d/q '[:find (count ?e)
-                              :where [?e :ship/type :moon]
-                                     [?e :ship/instance ?i]
-                                     [(missing? $ ?e :ship/terminated-at)]]
-                            db))]
+        is     (or (ffirst (d/q '[:find (count ?e)
+                                  :where [?e :ship/type :moon]
+                                  [?e :ship/instance ?i]
+                                  [(missing? $ ?e :ship/terminated-at)]]
+                                db)) 0)]
     (dotimes [_ (- 64 is)]
       (birth-moon cookie))
     (- 64 is)))
