@@ -208,9 +208,9 @@
 
 (defn get-moon-spawner-cookie [db]
   (let [code (ffirst (d/q '[:find ?c
-                            :where [?e :ship/urbit-id "~rosmyn-fordet"]
+                            :where [?e :ship/urbit-id "~dovfeb-tartuc"]
                             [?e :ship/code ?c]] db))]
-    (get-auth-cookie "~rosmyn-fordet" code)))
+    (get-auth-cookie "~dovfeb-tartuc" code)))
 
 (defn launch-instance
   ([]
@@ -279,62 +279,63 @@
   (let [headers {"cookie" cookie
                  "content-type" "application/json"}
         uuid    (java.util.UUID/randomUUID)
-        slog    (http/get "https://rosmyn-fordet.arvo.network/~_~/slog"
+        slog    (http/get "https://dovfeb-tartuc.arvo.network/~_~/slog"
                       {:headers headers :as :stream})]
-    (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" uuid)
+    (http/put (str "https://dovfeb-tartuc.arvo.network/~/channel/shore-" uuid)
               {:headers headers
                :body
                (json/write-str
                 [{:id 1
                   :action "poke"
-                  :ship "rosmyn-fordet"
+                  :ship "dovfeb-tartuc"
                   :app "herm"
                   :mark "belt"
                   :json {:txt (str/split (str "(slog ~[[%leaf \"" uuid "\"]])") #"")}}
                  {:id 2
                   :action "poke"
-                  :ship "rosmyn-fordet"
+                  :ship "dovfeb-tartuc"
                   :app "herm"
                   :mark "belt"
                   :json {:ret nil}}
                  {:id 3
                   :action "poke"
-                  :ship "rosmyn-fordet"
+                  :ship "dovfeb-tartuc"
                   :app "herm"
                   :mark "belt"
                   :json {:txt (str/split "|moon" #"")}}
                  {:id 4
                   :action "poke"
-                  :ship "rosmyn-fordet"
+                  :ship "dovfeb-tartuc"
                   :app "herm"
                   :mark "belt"
                   :json {:ret nil}}])})
     (loop [x (seek-slog uuid (:body slog))
            i 0]
       (if (str/starts-with? (first x) "data:moon" )
-        {:ship/urbit-id (second (str/split (first x) #" "))
-         :ship/networking-key (subs (first (next (next x))) 5)
-         :ship/type :moon
-         :ship/redeemed false}
+        (do (.close (:body slog))
+          {:ship/urbit-id (second (str/split (first x) #" "))
+           :ship/networking-key (subs (first (next (next x))) 5)
+           :ship/type :moon
+           :ship/redeemed false})
         (if (> i 50)
           (throw (Exception. "slog does not contain moon data"))
           (recur (next x) (inc i)))))))
 
 (defn breach-moon [urbit-id cookie]
-  (http/put (str "https://rosmyn-fordet.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
+  (http/put (str "https://dovfeb-tartuc.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
             {:headers {"cookie" cookie
                        "content-type" "application/json"}
              :body
              (json/write-str
               [{:id 0
                 :action "poke"
-                :ship "rosmyn-fordet"
+                :ship "dovfeb-tartuc"
                 :app "herm"
                 :mark "belt"
                 :json {:txt (str/split (str "|moon-breach " urbit-id) #"")}}
                {:id 1
                 :action "poke"
-                :ship "rosmyn-fordet"
+                :ship "dovfeb-tartuc"
                 :app "herm"
                 :mark "belt"
                 :json {:ret nil}}])}))
