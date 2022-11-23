@@ -281,45 +281,45 @@
         uuid    (java.util.UUID/randomUUID)
         slog    (http/get "https://dovfeb-tartuc.arvo.network/~_~/slog"
                       {:headers headers :as :stream})]
-    (http/put (str "https://dovfeb-tartuc.arvo.network/~/channel/shore-" uuid)
-              {:headers headers
-               :body
-               (json/write-str
-                [{:id 1
-                  :action "poke"
-                  :ship "dovfeb-tartuc"
-                  :app "herm"
-                  :mark "belt"
-                  :json {:txt (str/split (str "(slog ~[[%leaf \"" uuid "\"]])") #"")}}
-                 {:id 2
-                  :action "poke"
-                  :ship "dovfeb-tartuc"
-                  :app "herm"
-                  :mark "belt"
-                  :json {:ret nil}}
-                 {:id 3
-                  :action "poke"
-                  :ship "dovfeb-tartuc"
-                  :app "herm"
-                  :mark "belt"
-                  :json {:txt (str/split "|moon" #"")}}
-                 {:id 4
-                  :action "poke"
-                  :ship "dovfeb-tartuc"
-                  :app "herm"
-                  :mark "belt"
-                  :json {:ret nil}}])})
-    (loop [x (seek-slog uuid (:body slog))
-           i 0]
-      (if (str/starts-with? (first x) "data:moon" )
-        (do (.close (:body slog))
+    (with-open [body (:body slog)]
+      (http/put (str "https://dovfeb-tartuc.arvo.network/~/channel/shore-" uuid)
+                {:headers headers
+                 :body
+                 (json/write-str
+                  [{:id 1
+                    :action "poke"
+                    :ship "dovfeb-tartuc"
+                    :app "herm"
+                    :mark "belt"
+                    :json {:txt (str/split (str "(slog ~[[%leaf \"" uuid "\"]])") #"")}}
+                   {:id 2
+                    :action "poke"
+                    :ship "dovfeb-tartuc"
+                    :app "herm"
+                    :mark "belt"
+                    :json {:ret nil}}
+                   {:id 3
+                    :action "poke"
+                    :ship "dovfeb-tartuc"
+                    :app "herm"
+                    :mark "belt"
+                    :json {:txt (str/split "|moon" #"")}}
+                   {:id 4
+                    :action "poke"
+                    :ship "dovfeb-tartuc"
+                    :app "herm"
+                    :mark "belt"
+                    :json {:ret nil}}])})
+      (loop [x (seek-slog uuid body)
+             i 0]
+        (if (str/starts-with? (first x) "data:moon" )
           {:ship/urbit-id (second (str/split (first x) #" "))
            :ship/networking-key (subs (first (next (next x))) 5)
            :ship/type :moon
-           :ship/redeemed false})
-        (if (> i 50)
-          (throw (Exception. "slog does not contain moon data"))
-          (recur (next x) (inc i)))))))
+           :ship/redeemed false}
+          (if (> i 50)
+            (throw (Exception. "slog does not contain moon data"))
+            (recur (next x) (inc i))))))))
 
 (defn breach-moon [urbit-id cookie]
   (http/put (str "https://dovfeb-tartuc.arvo.network/~/channel/shore-" (java.util.UUID/randomUUID))
